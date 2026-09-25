@@ -12,5 +12,12 @@ pipeline {
                 sh 'docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .'
             }
         }
+
+        stage('Test') {
+            steps {
+                sh 'npm install'
+                sh 'npm test'
+            }
+        }
     }
 }
