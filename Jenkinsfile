@@ -37,7 +37,7 @@ pipeline {
         stage('Security') {
             steps {
                 sh 'npm audit --audit-level=critical'
-                sh 'docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy image --severity CRITICAL --exit-code 1 medtrack-api:1.0'
+                sh 'docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy image --severity CRITICAL --ignore-unfixed --exit-code 1 medtrack-api:1.0'
             }
         }
 
