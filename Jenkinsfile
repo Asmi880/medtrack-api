@@ -25,7 +25,9 @@ pipeline {
                 withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-key', keyFileVariable: 'SSH_KEY')]) {
                     sh '''
                         rsync -av -e "ssh -i $SSH_KEY -o StrictHostKeyChecking=no" --exclude 'node_modules' --exclude '.git' ./ ec2-user@54.253.181.6:~/medtrack-api/
-                        ssh -i $SSH_KEY -o StrictHostKeyChecking=no ec2-user@54.253.181.6 "cd medtrack-api && npm install && pkill -f '[n]ode server.js' || true && setsid nohup node server.js > app.log 2>&1 < /dev/null &"
+                        ssh -i $SSH_KEY -o StrictHostKeyChecking=no ec2-user@54.253.181.6 "pkill -f '[n]ode server.js' || true"
+                        ssh -i $SSH_KEY -o StrictHostKeyChecking=no ec2-user@54.253.181.6 "cd medtrack-api && npm install"
+                        ssh -i $SSH_KEY -o StrictHostKeyChecking=no ec2-user@54.253.181.6 "cd medtrack-api && setsid nohup node server.js > app.log 2>&1 < /dev/null &"
                     '''
                 }
             }
