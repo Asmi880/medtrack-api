@@ -53,5 +53,18 @@ pipeline {
                 }
             }
         }
+
+        stage('Monitoring') {
+            steps {
+                sh '''
+                    sleep 5
+                    curl -f http://54.253.181.6:3000/health
+                    curl -X POST "https://api.ap2.datadoghq.com/api/v1/events" \
+                    -H "DD-API-KEY: 6572217c9966b02198f190ae25d4d98a" \
+                    -H "Content-Type: application/json" \
+                    -d '{"title": "MedTrack API Deployed", "text": "Jenkins pipeline successfully deployed and verified medtrack-api on AWS EC2", "alert_type": "success"}'
+                '''
+            }
+        }
     }
 }
