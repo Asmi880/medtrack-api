@@ -1,0 +1,21 @@
+{
+  "name": "medtrack-api",
+  "version": "1.0.0",
+  "description": "MedTrack API - a small REST API for tracking patient medication schedules (CRUD over SQLite), built as the target application for a Jenkins CI/CD/DevSecOps pipeline (SIT223/SIT753 7.3HD).",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "jest --coverage",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.3.0",
+    "express": "^4.19.2"
+  },
+  "devDependencies": {
+    "eslint": "^8.57.0",
+    "jest": "^29.7.0",
+    "supertest": "^7.0.0"
+  },
+  "license": "MIT"
+}
