@@ -20,6 +20,20 @@ pipeline {
             }
         }
 
+        stage('Code Quality') {
+            steps {
+                withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
+                    sh '''
+                        docker run --rm -v "$(pwd)":/usr/src -w /usr/src sonarsource/sonar-scanner-cli \
+                        -Dsonar.projectKey=medtrack-api \
+                        -Dsonar.sources=. \
+                        -Dsonar.host.url=http://host.docker.internal:9000 \
+                        -Dsonar.login=$SONAR_TOKEN
+                    '''
+                }
+            }
+        }
+
         stage('Release') {
             steps {
                 withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-key', keyFileVariable: 'SSH_KEY')]) {
