@@ -24,7 +24,7 @@ pipeline {
             steps {
                 withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
                     sh '''
-                        docker run --rm -v "$(pwd)":/usr/src -w /usr/src sonarsource/sonar-scanner-cli \
+                        sonar-scanner \
                         -Dsonar.projectKey=medtrack-api \
                         -Dsonar.sources=. \
                         -Dsonar.host.url=http://host.docker.internal:9000 \
