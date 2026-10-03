@@ -79,7 +79,10 @@ pipeline {
                         docker save ${IMAGE_NAME}:${IMAGE_TAG} -o image.tar
                         scp -i $SSH_KEY -o StrictHostKeyChecking=no image.tar ${EC2_HOST}:~/image.tar
                         ssh -i $SSH_KEY -o StrictHostKeyChecking=no ${EC2_HOST} "sudo docker load -i ~/image.tar"
+                        ssh -i $SSH_KEY -o StrictHostKeyChecking=no ${EC2_HOST} "sudo pkill -f '[n]ode server.js' || true"
+                        ssh -i $SSH_KEY -o StrictHostKeyChecking=no ${EC2_HOST} "sudo fuser -k 3000/tcp || true"
                         ssh -i $SSH_KEY -o StrictHostKeyChecking=no ${EC2_HOST} "sudo docker rm -f medtrack-api-prod || true"
+                        sleep 2
                         ssh -i $SSH_KEY -o StrictHostKeyChecking=no ${EC2_HOST} "sudo docker run -d --name medtrack-api-prod -p 3000:3000 --restart unless-stopped ${IMAGE_NAME}:${IMAGE_TAG}"
                         rm -f image.tar
                     '''
