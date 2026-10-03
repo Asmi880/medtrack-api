@@ -53,7 +53,9 @@ pipeline {
                 script {
                     sh 'docker rm -f medtrack-staging || true'
                     sh 'docker run -d --name medtrack-staging -p 3001:3000 ${IMAGE_NAME}:${IMAGE_TAG}'
-                    sh 'sleep 5'
+                    sh 'sleep 8'
+                    sh 'docker logs medtrack-staging || true'
+                    sh 'docker ps -a --filter name=medtrack-staging'
                     try {
                         sh 'curl -f http://localhost:3001/health'
                         echo 'Staging health check passed'
@@ -61,6 +63,7 @@ pipeline {
                         sh 'docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${IMAGE_NAME}:previous'
                     } catch (err) {
                         echo 'Staging health check FAILED - rolling back to previous image'
+                        sh 'docker logs medtrack-staging || true'
                         sh 'docker rm -f medtrack-staging || true'
                         sh 'docker rm -f medtrack-staging-rollback || true'
                         sh 'docker run -d --name medtrack-staging-rollback -p 3001:3000 ${IMAGE_NAME}:previous || true'
