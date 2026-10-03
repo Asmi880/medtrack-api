@@ -92,9 +92,11 @@ pipeline {
 
         stage('Monitoring') {
             steps {
-                withCredentials([string(credentialsId: 'datadog-api-key', variable: 'DD_API_KEY')]) {
+                withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-key', keyFileVariable: 'SSH_KEY'), string(credentialsId: 'datadog-api-key', variable: 'DD_API_KEY')]) {
                     sh '''
-                        sleep 5
+                        sleep 20
+                        ssh -i $SSH_KEY -o StrictHostKeyChecking=no ${EC2_HOST} "sudo docker ps -a --filter name=medtrack-api-prod"
+                        ssh -i $SSH_KEY -o StrictHostKeyChecking=no ${EC2_HOST} "sudo docker logs medtrack-api-prod || true"
                         curl -f http://54.253.181.6:3000/health
                         curl -X POST "https://api.ap2.datadoghq.com/api/v1/events" \
                         -H "DD-API-KEY: $DD_API_KEY" \
