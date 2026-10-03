@@ -3,13 +3,14 @@ pipeline {
 
     environment {
         IMAGE_NAME = 'medtrack-api'
-        IMAGE_TAG = '1.0'
+        IMAGE_TAG  = "${env.BUILD_NUMBER}"
+        EC2_HOST   = 'ec2-user@54.253.181.6'
     }
 
     stages {
         stage('Build') {
             steps {
-                sh 'docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .'
+                sh 'docker build -t ${IMAGE_NAME}:${IMAGE_TAG} -t ${IMAGE_NAME}:latest .'
             }
         }
 
@@ -22,14 +23,20 @@ pipeline {
 
         stage('Code Quality') {
             steps {
-                withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
+                withSonarQubeEnv('LocalSonarQube') {
                     sh '''
                         sonar-scanner \
                         -Dsonar.projectKey=medtrack-api \
-                        -Dsonar.sources=. \
-                        -Dsonar.host.url=http://host.docker.internal:9000 \
-                        -Dsonar.login=$SONAR_TOKEN
+                        -Dsonar.sources=.
                     '''
+                }
+            }
+        }
+
+        stage('Quality Gate') {
+            steps {
+                timeout(time: 3, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
                 }
             }
         }
@@ -37,7 +44,29 @@ pipeline {
         stage('Security') {
             steps {
                 sh 'npm audit --audit-level=critical'
-                sh 'docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy image --severity CRITICAL --ignore-unfixed --exit-code 1 medtrack-api:1.0'
+                sh 'docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy image --severity CRITICAL --ignore-unfixed --exit-code 1 ${IMAGE_NAME}:${IMAGE_TAG}'
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                script {
+                    sh 'docker rm -f medtrack-staging || true'
+                    sh 'docker run -d --name medtrack-staging -p 3001:3000 ${IMAGE_NAME}:${IMAGE_TAG}'
+                    sh 'sleep 5'
+                    try {
+                        sh 'curl -f http://localhost:3001/health'
+                        echo 'Staging health check passed'
+                        sh 'docker rm -f medtrack-staging || true'
+                        sh 'docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${IMAGE_NAME}:previous'
+                    } catch (err) {
+                        echo 'Staging health check FAILED - rolling back to previous image'
+                        sh 'docker rm -f medtrack-staging || true'
+                        sh 'docker rm -f medtrack-staging-rollback || true'
+                        sh 'docker run -d --name medtrack-staging-rollback -p 3001:3000 ${IMAGE_NAME}:previous || true'
+                        error('Deploy stage failed health check - rolled back to previous image')
+                    }
+                }
             }
         }
 
@@ -45,10 +74,12 @@ pipeline {
             steps {
                 withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-key', keyFileVariable: 'SSH_KEY')]) {
                     sh '''
-                        rsync -av -e "ssh -i $SSH_KEY -o StrictHostKeyChecking=no" --exclude 'node_modules' --exclude '.git' ./ ec2-user@54.253.181.6:~/medtrack-api/
-                        ssh -i $SSH_KEY -o StrictHostKeyChecking=no ec2-user@54.253.181.6 "pkill -f '[n]ode server.js' || true"
-                        ssh -i $SSH_KEY -o StrictHostKeyChecking=no ec2-user@54.253.181.6 "cd medtrack-api && npm install"
-                        ssh -f -i $SSH_KEY -o StrictHostKeyChecking=no ec2-user@54.253.181.6 "cd medtrack-api && setsid nohup node server.js > app.log 2>&1 < /dev/null"
+                        docker save ${IMAGE_NAME}:${IMAGE_TAG} -o image.tar
+                        scp -i $SSH_KEY -o StrictHostKeyChecking=no image.tar ${EC2_HOST}:~/image.tar
+                        ssh -i $SSH_KEY -o StrictHostKeyChecking=no ${EC2_HOST} "sudo docker load -i ~/image.tar"
+                        ssh -i $SSH_KEY -o StrictHostKeyChecking=no ${EC2_HOST} "sudo docker rm -f medtrack-api-prod || true"
+                        ssh -i $SSH_KEY -o StrictHostKeyChecking=no ${EC2_HOST} "sudo docker run -d --name medtrack-api-prod -p 3000:3000 --restart unless-stopped ${IMAGE_NAME}:${IMAGE_TAG}"
+                        rm -f image.tar
                     '''
                 }
             }
@@ -56,14 +87,16 @@ pipeline {
 
         stage('Monitoring') {
             steps {
-                sh '''
-                    sleep 5
-                    curl -f http://54.253.181.6:3000/health
-                    curl -X POST "https://api.ap2.datadoghq.com/api/v1/events" \
-                    -H "DD-API-KEY: 6572217c9966b02198f190ae25d4d98a" \
-                    -H "Content-Type: application/json" \
-                    -d '{"title": "MedTrack API Deployed", "text": "Jenkins pipeline successfully deployed and verified medtrack-api on AWS EC2", "alert_type": "success"}'
-                '''
+                withCredentials([string(credentialsId: 'datadog-api-key', variable: 'DD_API_KEY')]) {
+                    sh '''
+                        sleep 5
+                        curl -f http://54.253.181.6:3000/health
+                        curl -X POST "https://api.ap2.datadoghq.com/api/v1/events" \
+                        -H "DD-API-KEY: $DD_API_KEY" \
+                        -H "Content-Type: application/json" \
+                        -d '{"title": "MedTrack API Deployed", "text": "Jenkins pipeline successfully deployed and verified medtrack-api on AWS EC2", "alert_type": "success"}'
+                    '''
+                }
             }
         }
     }
