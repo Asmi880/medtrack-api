@@ -55,9 +55,8 @@ pipeline {
                     sh 'docker run -d --name medtrack-staging -p 3001:3000 ${IMAGE_NAME}:${IMAGE_TAG}'
                     sh 'sleep 8'
                     sh 'docker logs medtrack-staging || true'
-                    sh 'docker ps -a --filter name=medtrack-staging'
                     try {
-                        sh 'curl -f http://localhost:3001/health'
+                        sh 'curl -f http://host.docker.internal:3001/health'
                         echo 'Staging health check passed'
                         sh 'docker rm -f medtrack-staging || true'
                         sh 'docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${IMAGE_NAME}:previous'
