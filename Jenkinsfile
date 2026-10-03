@@ -27,7 +27,8 @@ pipeline {
                     sh '''
                         sonar-scanner \
                         -Dsonar.projectKey=medtrack-api \
-                        -Dsonar.sources=.
+                        -Dsonar.sources=. \
+                        -Dsonar.exclusions=**/trivy-scan.tar,**/*.tar
                     '''
                 }
             }
@@ -46,7 +47,7 @@ pipeline {
                 sh 'npm audit --audit-level=critical'
                 sh '''
                     docker save ${IMAGE_NAME}:${IMAGE_TAG} -o trivy-scan.tar
-                    docker run --rm -v trivy-cache:/root/.cache/ -v $(pwd):/scan aquasec/trivy image --input /scan/trivy-scan.tar --severity CRITICAL --ignore-unfixed --exit-code 1 --timeout 10m0s
+                    docker run --rm --volumes-from $(hostname) -v trivy-cache:/root/.cache/ aquasec/trivy image --input $(pwd)/trivy-scan.tar --severity CRITICAL --ignore-unfixed --exit-code 1 --timeout 10m0s
                     rm -f trivy-scan.tar
                 '''
             }
