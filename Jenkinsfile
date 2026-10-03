@@ -44,7 +44,11 @@ pipeline {
         stage('Security') {
             steps {
                 sh 'npm audit --audit-level=critical'
-                sh 'docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy image --severity CRITICAL --ignore-unfixed --exit-code 1 ${IMAGE_NAME}:${IMAGE_TAG}'
+                sh '''
+                    docker save ${IMAGE_NAME}:${IMAGE_TAG} -o trivy-scan.tar
+                    docker run --rm -v $(pwd):/scan aquasec/trivy image --input /scan/trivy-scan.tar --severity CRITICAL --ignore-unfixed --exit-code 1
+                    rm -f trivy-scan.tar
+                '''
             }
         }
 
