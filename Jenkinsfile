@@ -10,7 +10,7 @@ pipeline {
     stages {
         stage('Build') {
             steps {
-                sh 'docker build -t ${IMAGE_NAME}:${IMAGE_TAG} -t ${IMAGE_NAME}:latest .'
+                sh 'docker build --platform linux/amd64 -t ${IMAGE_NAME}:${IMAGE_TAG} -t ${IMAGE_NAME}:latest .'
             }
         }
 
@@ -94,7 +94,7 @@ pipeline {
             steps {
                 withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-key', keyFileVariable: 'SSH_KEY'), string(credentialsId: 'datadog-api-key', variable: 'DD_API_KEY')]) {
                     sh '''
-                        sleep 20
+                        sleep 10
                         ssh -i $SSH_KEY -o StrictHostKeyChecking=no ${EC2_HOST} "sudo docker ps -a --filter name=medtrack-api-prod"
                         ssh -i $SSH_KEY -o StrictHostKeyChecking=no ${EC2_HOST} "sudo docker logs medtrack-api-prod || true"
                         curl -f http://54.253.181.6:3000/health
