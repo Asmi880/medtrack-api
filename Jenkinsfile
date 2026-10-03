@@ -46,7 +46,7 @@ pipeline {
                 sh 'npm audit --audit-level=critical'
                 sh '''
                     docker save ${IMAGE_NAME}:${IMAGE_TAG} -o trivy-scan.tar
-                    docker run --rm -v $(pwd):/scan aquasec/trivy image --input /scan/trivy-scan.tar --severity CRITICAL --ignore-unfixed --exit-code 1
+                    docker run --rm -v trivy-cache:/root/.cache/ -v $(pwd):/scan aquasec/trivy image --input /scan/trivy-scan.tar --severity CRITICAL --ignore-unfixed --exit-code 1 --timeout 10m0s
                     rm -f trivy-scan.tar
                 '''
             }
